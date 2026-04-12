@@ -58,7 +58,7 @@ Copy the agents, skills, and commands into your Claude Code config:
 
 ```bash
 # Clone
-git clone https://github.com/baonq101/claude-super-auto.git
+git clone https://github.com/BaoNguyen1001/claude-super-auto.git
 cd claude-super-auto
 
 # Copy to global config
