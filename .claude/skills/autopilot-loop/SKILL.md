@@ -185,8 +185,8 @@ function check_stop_conditions(evaluation, iteration):
     if evaluation.overall_score >= GOAL_THRESHOLD:
         return (true, "goals_met")
 
-    # 3. Diminishing returns (skip for iteration 1 — no prior score)
-    if iteration > 1 and evaluation.delta is not null:
+    # 3. Diminishing returns (skip for iterations 1-2 — too early to judge)
+    if iteration >= 3 and evaluation.delta is not null:
         if evaluation.delta <= DELTA_THRESHOLD:
             return (true, "diminishing_returns")
 
@@ -207,6 +207,7 @@ The controller can override the evaluator in specific cases:
 |-----------|----------|-----|
 | Iteration 1, score < 85 | Always continue | First iteration is scaffolding — score is artificially low |
 | Iteration 1, score >= 85 | Respect (stop) | If somehow everything is done in one shot, accept it |
+| Delta <= 5 but iteration < 3 | Continue | Give at least 3 iterations before stopping on diminishing returns |
 | Delta <= 5 but iteration < 3 | Continue | Give at least 3 iterations before stopping on diminishing returns |
 
 ---

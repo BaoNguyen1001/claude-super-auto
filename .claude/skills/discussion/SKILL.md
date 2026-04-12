@@ -1,6 +1,7 @@
 ---
 name: discussion
 description: Orchestrates adversarial debate between Proposer and Challenger agents. Mediates rounds, detects convergence, and synthesizes a discussion result. Invoked by the autopilot-loop controller.
+model: opus
 ---
 
 # Discussion Skill: Adversarial Debate Protocol
