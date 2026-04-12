@@ -1,0 +1,4 @@
+# Ephemeral runtime state — do not commit
+STATUS.md
+
+# Everything else (.autopilot/config.md, iteration-N/, FINAL.md) IS committed

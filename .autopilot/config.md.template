@@ -1,0 +1,63 @@
+# Autopilot Configuration
+
+## Idea
+<user's idea>
+
+## Success Criteria
+- <criterion 1>
+- <criterion 2>
+
+## Constraints
+- <optional constraint>
+
+## Thresholds
+- goal_threshold: 85
+- delta_threshold: 5
+- max_iterations: 5
+
+<!--
+## evaluation.json Schema
+
+Each iteration produces an evaluation.json file at:
+  .autopilot/iteration-N/evaluation.json
+
+Schema:
+{
+  "iteration": N,                        // Integer — current iteration number
+  "dimensions": {
+    "functionality": {
+      "score": N,                        // 0–100 — do artifacts satisfy success criteria?
+      "reasoning": "..."                 // Brief explanation of the score
+    },
+    "completeness": {
+      "score": N,                        // 0–100 — fraction of criteria with any implementation
+      "reasoning": "..."
+    },
+    "quality": {
+      "score": N,                        // 0–100 — tests exist/pass, no stubs/placeholders
+      "reasoning": "..."
+    },
+    "runnability": {
+      "score": N,                        // 0–100 — can artifact be executed? entry point, deps
+      "reasoning": "..."
+    }
+  },
+  "overall_score": N,                    // Weighted sum: functionality*0.4 + completeness*0.25 + quality*0.20 + runnability*0.15
+  "previous_score": N | null,            // overall_score from iteration N-1, or null if iteration 1
+  "delta": N | null,                     // overall_score - previous_score, or null if iteration 1
+  "criteria_checklist": [                // One entry per success criterion from config.md
+    { "criterion": "...", "met": true | false }
+  ],
+  "verdict": "continue" | "stop",        // Loop decision
+  "stop_reason": null | "goals_met" | "diminishing_returns" | "max_iterations",
+  "summary": "..."                       // Human-readable summary of this iteration's evaluation
+}
+
+Stop condition check order:
+  1. max_iterations — if iteration >= max_iterations → stop, stop_reason = "max_iterations"
+  2. goal_threshold — if overall_score >= goal_threshold → stop, stop_reason = "goals_met"
+  3. delta_threshold — if delta != null && delta <= delta_threshold → stop, stop_reason = "diminishing_returns"
+  4. Otherwise → continue
+
+Note: delta check is skipped on iteration 1 (previous_score is null).
+-->
