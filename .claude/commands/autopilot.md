@@ -1,19 +1,21 @@
 # /autopilot — Autonomous Idea-to-Implementation Loop
 
-Interactive kickoff followed by fully autonomous execution. No human intervention after step 3.
+Interactive kickoff followed by fully autonomous execution. No human intervention after the kickoff questions.
+
+**IMPORTANT**: Ask each question ONE AT A TIME. Wait for the user's response before asking the next question. Do not bundle multiple questions into a single message.
 
 ## Step 1: Gather the Idea
 
-Ask the user:
+Ask the user ONLY this question:
 
 > **What do you want to build?**
 > Describe your idea in 1-3 sentences. Be specific about what the end result should be.
 
-Wait for response. Store as `IDEA`.
+Wait for response. Store as `IDEA`. Do NOT ask the next question until the user has answered.
 
 ## Step 2: Gather Success Criteria
 
-Ask the user:
+Ask the user ONLY this question:
 
 > **How will we know it's done?**
 > List 3-7 concrete success criteria. Each should be verifiable (something we can check in the code/output).
@@ -23,24 +25,30 @@ Ask the user:
 > - Outputs a formatted PDF
 > - Supports syntax highlighting in code blocks
 
-Wait for response. Store as `SUCCESS_CRITERIA`.
+Wait for response. Store as `SUCCESS_CRITERIA`. Do NOT ask the next question until the user has answered.
 
-## Step 3: Gather Constraints and Thresholds (optional)
+## Step 3: Gather Constraints (optional)
 
-Ask the user:
+Ask the user ONLY this question:
 
 > **Any constraints or preferences?** (optional — press enter to skip)
 >
 > Examples: "Use TypeScript", "No external dependencies", "Must work offline"
->
-> **Iteration settings** (defaults shown — press enter to accept):
+
+Wait for response. Store as `CONSTRAINTS`. Do NOT ask the next question until the user has answered.
+
+## Step 4: Gather Iteration Settings (optional)
+
+Ask the user ONLY this question:
+
+> **Iteration settings** (defaults shown — press enter to accept all):
 > - Max iterations: 5
 > - Goal score threshold: 85/100
 > - Diminishing returns threshold: 5 points
 
-Wait for response. Parse any overrides. Store as `CONSTRAINTS`, `MAX_ITERATIONS`, `GOAL_THRESHOLD`, `DELTA_THRESHOLD`.
+Wait for response. Parse any overrides. Store as `MAX_ITERATIONS`, `GOAL_THRESHOLD`, `DELTA_THRESHOLD`.
 
-## Step 4: Initialize State
+## Step 5: Initialize State
 
 Create the `.autopilot/` directory and write the configuration:
 
@@ -82,7 +90,7 @@ Write `.autopilot/STATUS.md`:
 
 Ensure `.autopilot/.gitignore` exists (should have been created during project setup).
 
-## Step 5: Confirm and Launch
+## Step 6: Confirm and Launch
 
 Display to the user:
 
@@ -97,7 +105,7 @@ Display to the user:
   Goal threshold: {GOAL_THRESHOLD}/100
 
   The system will now autonomously:
-  1. Discuss scope (Proposer vs Challenger)
+  1. Discuss scope via /t:discuss (Proposer vs Challenger)
   2. Plan and decompose into tasks
   3. Build with TDD
   4. Evaluate progress
@@ -108,7 +116,7 @@ Display to the user:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-## Step 6: Invoke the Loop Controller
+## Step 7: Invoke the Loop Controller
 
 Hand off to the autopilot-loop skill for fully autonomous execution:
 

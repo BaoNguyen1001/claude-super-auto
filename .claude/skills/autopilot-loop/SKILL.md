@@ -67,7 +67,13 @@ if ITERATION == MAX_ITERATIONS and not should_stop:
 
 ## Phase 1: Discussion
 
-Invoke the discussion skill to run an adversarial Proposer/Challenger debate.
+Invoke the `/t:discuss` skill to run guided requirements gathering followed by adversarial Proposer/Challenger debate.
+
+```
+Skill(skill="t:discuss")
+```
+
+If `/t:discuss` is not available, fall back to the project-local discussion skill:
 
 ```
 Skill(skill="discussion")
