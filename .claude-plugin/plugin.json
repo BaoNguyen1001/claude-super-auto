@@ -1,0 +1,32 @@
+{
+  "name": "claude-super-auto",
+  "version": "1.0.0",
+  "description": "Autonomous idea-to-implementation workflow loop for Claude Code. Takes an idea, runs adversarial discussion, auto-planning, auto-building with TDD, and evaluation in a continuous loop until done.",
+  "author": {
+    "name": "baonq101",
+    "url": "https://github.com/baonq101"
+  },
+  "homepage": "https://github.com/baonq101/claude-super-auto",
+  "repository": "https://github.com/baonq101/claude-super-auto",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "autopilot",
+    "autonomous",
+    "agents",
+    "workflow",
+    "adversarial-debate",
+    "auto-planning",
+    "auto-building",
+    "tdd",
+    "orchestration",
+    "loop"
+  ],
+  "agents": [
+    "./agents/proposer.md",
+    "./agents/challenger.md",
+    "./agents/evaluator.md"
+  ],
+  "skills": ["./skills/"],
+  "commands": ["./commands/"]
+}

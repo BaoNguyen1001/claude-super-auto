@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "modules": [
+    {
+      "id": "autopilot-agents",
+      "kind": "agents",
+      "description": "Adversarial discussion agents (proposer, challenger) and iteration evaluator for the autopilot workflow loop.",
+      "paths": [
+        "agents"
+      ],
+      "targets": [
+        "claude"
+      ],
+      "dependencies": [],
+      "defaultInstall": true,
+      "cost": "light",
+      "stability": "stable"
+    },
+    {
+      "id": "autopilot-skills",
+      "kind": "skills",
+      "description": "Discussion skill (adversarial debate protocol) and autopilot-loop controller (meta-loop sequencing discuss → plan → build → evaluate).",
+      "paths": [
+        "skills/discussion",
+        "skills/autopilot-loop"
+      ],
+      "targets": [
+        "claude"
+      ],
+      "dependencies": [
+        "autopilot-agents"
+      ],
+      "defaultInstall": true,
+      "cost": "medium",
+      "stability": "stable"
+    },
+    {
+      "id": "autopilot-commands",
+      "kind": "commands",
+      "description": "The /autopilot entry command — interactive kickoff then fully autonomous execution.",
+      "paths": [
+        "commands"
+      ],
+      "targets": [
+        "claude"
+      ],
+      "dependencies": [
+        "autopilot-skills"
+      ],
+      "defaultInstall": true,
+      "cost": "light",
+      "stability": "stable"
+    }
+  ]
+}

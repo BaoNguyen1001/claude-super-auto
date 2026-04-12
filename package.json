@@ -1,0 +1,23 @@
+{
+  "name": "claude-super-auto",
+  "version": "1.0.0",
+  "description": "Autonomous idea-to-implementation workflow loop for Claude Code CLI",
+  "main": "index.js",
+  "scripts": {
+    "validate": "claude plugin validate .claude-plugin/plugin.json"
+  },
+  "keywords": [
+    "claude-code",
+    "autopilot",
+    "autonomous",
+    "agents",
+    "workflow",
+    "adversarial-debate"
+  ],
+  "author": "baonq101",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baonq101/claude-super-auto.git"
+  }
+}

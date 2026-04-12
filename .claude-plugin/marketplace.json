@@ -1,0 +1,45 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "claude-super-auto",
+  "description": "Autonomous idea-to-implementation workflow loop — adversarial discussion, auto-planning, auto-building with TDD, and convergence-based evaluation",
+  "owner": {
+    "name": "baonq101",
+    "email": ""
+  },
+  "metadata": {
+    "description": "Fully autonomous agent workflow: idea in, project out. Adversarial Proposer/Challenger debate → planning → TDD building → 4-dimension evaluation → loop until done."
+  },
+  "plugins": [
+    {
+      "name": "claude-super-auto",
+      "source": "./",
+      "description": "Autonomous workflow loop with 3 agents (proposer, challenger, evaluator), 2 skills (discussion, autopilot-loop), and 1 command (/autopilot). Drop into any project for fully autonomous idea-to-implementation.",
+      "version": "1.0.0",
+      "author": {
+        "name": "baonq101",
+        "email": ""
+      },
+      "homepage": "https://github.com/baonq101/claude-super-auto",
+      "repository": "https://github.com/baonq101/claude-super-auto",
+      "license": "MIT",
+      "keywords": [
+        "autopilot",
+        "autonomous",
+        "agents",
+        "adversarial-debate",
+        "workflow",
+        "orchestration"
+      ],
+      "category": "workflow",
+      "tags": [
+        "agents",
+        "skills",
+        "commands",
+        "autonomous",
+        "orchestration",
+        "adversarial-debate"
+      ],
+      "strict": false
+    }
+  ]
+}
