@@ -14,8 +14,9 @@ The caller (autopilot-loop controller) provides:
 
 - `ITERATION` — current loop iteration number (1, 2, 3, ...)
 - `IDEA` — the original user idea
-- `SUCCESS_CRITERIA` — list of criteria from `.autopilot/config.md`
-- `CONSTRAINTS` — optional constraints from config
+- `SUCCESS_CRITERIA` — auto-generated criteria from `.autopilot/config.md`
+- `CONSTRAINTS` — auto-inferred constraints from config
+- `SELECTED_IDEAS` — top ideas picked from `/t:top-ideas` output for this iteration
 - `PRIOR_EVALUATION` — (iteration 2+ only) previous evaluation.json results
 - `COMPLETED_ITEMS` — (iteration 2+ only) items already built
 - `REMAINING_ITEMS` — (iteration 2+ only) items not yet built
@@ -41,15 +42,18 @@ send_message(
 ## Idea
 {IDEA}
 
-## Success Criteria
+## Success Criteria (auto-generated)
 {SUCCESS_CRITERIA as bulleted list}
 
-## Constraints
+## Constraints (auto-inferred)
 {CONSTRAINTS or "None specified"}
 
+## Selected Ideas from /t:top-ideas
+{SELECTED_IDEAS as numbered list}
+
 ## Instructions
-Proposer: Expand this idea into a concrete feature list. What should we build?
-Challenger: Evaluate the Proposer's expansion. What should we cut, simplify, or keep?
+Proposer: Take the selected ideas and expand them into a concrete feature list. Which should we build and how?
+Challenger: Evaluate feasibility and scope. What should we cut, simplify, or keep? Are the selected ideas the right priorities?
 
 Use the structured message format (KEEP/ADD/CUT/MODIFY tags).
 """
@@ -67,8 +71,11 @@ send_message(
 ## Idea
 {IDEA}
 
-## Success Criteria
+## Success Criteria (auto-generated)
 {SUCCESS_CRITERIA as bulleted list}
+
+## Selected Ideas from /t:top-ideas
+{SELECTED_IDEAS as numbered list}
 
 ## Prior Iteration Results
 - **Score**: {PRIOR_EVALUATION.overall_score}/100
@@ -86,10 +93,10 @@ send_message(
 {REMAINING_ITEMS as bulleted list}
 
 ## Directive
-Focus discussion on addressing UNMET criteria and evaluator feedback.
+Focus discussion on the selected ideas and addressing UNMET criteria.
 Do NOT re-debate items that are already completed and working.
-Proposer: What should we add or improve to meet remaining criteria?
-Challenger: Is each proposal the simplest way to address the gap?
+Proposer: Which selected ideas best address the gaps? What should we build?
+Challenger: Is each proposal the simplest way to address the gap? Should any selected ideas be deferred?
 """
 )
 ```

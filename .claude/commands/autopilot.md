@@ -1,54 +1,27 @@
-# /autopilot — Autonomous Idea-to-Implementation Loop
+# /autopilot — Fully Autonomous Idea-to-Implementation Loop
 
-Interactive kickoff followed by fully autonomous execution. No human intervention after the kickoff questions.
+User provides ONE initial request. Everything else is autonomous. No further questions asked.
 
-**IMPORTANT**: Ask each question ONE AT A TIME. Wait for the user's response before asking the next question. Do not bundle multiple questions into a single message.
+## Step 1: Accept the Initial Request
 
-## Step 1: Gather the Idea
+If the user provided arguments with the command, use those as `IDEA`.
 
-Ask the user ONLY this question:
+If no arguments were provided, ask the user ONE question:
 
-> **What do you want to build?**
-> Describe your idea in 1-3 sentences. Be specific about what the end result should be.
+> **What do you want to build or improve?**
+> Describe your idea in a few sentences.
 
-Wait for response. Store as `IDEA`. Do NOT ask the next question until the user has answered.
+Wait for response. Store as `IDEA`. This is the ONLY question you ask. Do NOT ask for success criteria, constraints, iteration settings, or anything else.
 
-## Step 2: Gather Success Criteria
+## Step 2: Auto-Generate Configuration
 
-Ask the user ONLY this question:
+Autonomously analyze the `IDEA` and the current codebase to generate:
 
-> **How will we know it's done?**
-> List 3-7 concrete success criteria. Each should be verifiable (something we can check in the code/output).
->
-> Example:
-> - CLI accepts a markdown file as input
-> - Outputs a formatted PDF
-> - Supports syntax highlighting in code blocks
+1. **Success Criteria** — Derive 3-7 concrete, verifiable criteria from the idea. Read the codebase to understand what already exists and what the idea implies.
+2. **Constraints** — Infer from the codebase (language, framework, existing patterns). Do NOT ask the user.
+3. **Thresholds** — Use defaults: `goal_threshold: 85`, `delta_threshold: 5`, `max_iterations: 5`
 
-Wait for response. Store as `SUCCESS_CRITERIA`. Do NOT ask the next question until the user has answered.
-
-## Step 3: Gather Constraints (optional)
-
-Ask the user ONLY this question:
-
-> **Any constraints or preferences?** (optional — press enter to skip)
->
-> Examples: "Use TypeScript", "No external dependencies", "Must work offline"
-
-Wait for response. Store as `CONSTRAINTS`. Do NOT ask the next question until the user has answered.
-
-## Step 4: Gather Iteration Settings (optional)
-
-Ask the user ONLY this question:
-
-> **Iteration settings** (defaults shown — press enter to accept all):
-> - Max iterations: 5
-> - Goal score threshold: 85/100
-> - Diminishing returns threshold: 5 points
-
-Wait for response. Parse any overrides. Store as `MAX_ITERATIONS`, `GOAL_THRESHOLD`, `DELTA_THRESHOLD`.
-
-## Step 5: Initialize State
+## Step 3: Initialize State
 
 Create the `.autopilot/` directory and write the configuration:
 
@@ -64,16 +37,16 @@ Write `.autopilot/config.md`:
 ## Idea
 {IDEA}
 
-## Success Criteria
+## Success Criteria (auto-generated)
 {SUCCESS_CRITERIA as bulleted list}
 
-## Constraints
-{CONSTRAINTS or "None specified"}
+## Constraints (auto-inferred)
+{CONSTRAINTS}
 
 ## Thresholds
-- goal_threshold: {GOAL_THRESHOLD or 85}
-- delta_threshold: {DELTA_THRESHOLD or 5}
-- max_iterations: {MAX_ITERATIONS or 5}
+- goal_threshold: 85
+- delta_threshold: 5
+- max_iterations: 5
 ```
 
 Write `.autopilot/STATUS.md`:
@@ -88,9 +61,7 @@ Write `.autopilot/STATUS.md`:
 - Last updated: {current timestamp}
 ```
 
-Ensure `.autopilot/.gitignore` exists (should have been created during project setup).
-
-## Step 6: Confirm and Launch
+## Step 4: Confirm and Launch
 
 Display to the user:
 
@@ -100,23 +71,22 @@ Display to the user:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   Idea: {IDEA (truncated to 80 chars)}
-  Criteria: {count} defined
-  Max iterations: {MAX_ITERATIONS}
-  Goal threshold: {GOAL_THRESHOLD}/100
+  Auto-generated criteria: {count}
+  Max iterations: 5
 
-  The system will now autonomously:
-  1. Discuss scope via /t:discuss (Proposer vs Challenger)
-  2. Plan and decompose into tasks
-  3. Build with TDD
-  4. Evaluate progress
-  5. Loop until done
+  The system will now FULLY AUTONOMOUSLY:
+  1. Generate top ideas via /t:top-ideas
+  2. Auto-pick and discuss via /t:discuss
+  3. Plan and decompose into tasks
+  4. Build with TDD
+  5. Evaluate and loop
 
   You can walk away. Check .autopilot/STATUS.md
   for progress, or .autopilot/FINAL.md when complete.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-## Step 7: Invoke the Loop Controller
+## Step 5: Invoke the Loop Controller
 
 Hand off to the autopilot-loop skill for fully autonomous execution:
 
