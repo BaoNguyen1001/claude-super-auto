@@ -633,6 +633,26 @@ If the loop crashes mid-iteration:
 
 ---
 
+## Available Skills for Phase Enhancement
+
+The controller MAY invoke any of these global skills when the situation warrants it. Skills cost tokens and time — invoke them when the expected value is high, not mechanically every iteration.
+
+| Phase | Skill | When to Use |
+|-------|-------|-------------|
+| Idea Generation | `brainstorming` | When `/t:top-ideas` produces stale or repetitive ideas |
+| Idea Generation | `docs-seeker` | When the project needs external patterns or library research |
+| Planning | `coding-standards` | When the plan involves unfamiliar patterns — check conventions first |
+| Building | `test-driven-development` | When workers should write tests before implementation |
+| Review (4.5) | `qa-sweep` | When code-reviewer finds many issues — run a full quality sweep |
+| Review (4.5) | `security-review` | When changes touch auth, user input, APIs, or sensitive data |
+| Evaluation | `t:fresh-eyes` | When evaluator scores seem inconsistent — fresh perspective helps |
+| Debugging | `t:rootfix` | When tests fail repeatedly — diagnose root cause instead of patching |
+| Polish | `t:polish` | When score > 80 but criteria remain unmet — focus on fit and finish |
+
+**In unlimited mode**, Phase 0 (AI-driven action selection) should consider invoking these skills as part of its action plan. For example, if the action plan selects `security-review` as an action type, invoke the `security-review` skill directly rather than just building security features.
+
+---
+
 ## State File Reference
 
 | File | Written By | Read By | Purpose |

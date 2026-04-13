@@ -85,6 +85,17 @@ Every message you post to Agent Mail MUST use this exact format. The mediator pa
 - **Do not be a pushover** — if you concede too easily, the product ships half-baked
 - **Do not concede in Round 1** — Round 1 is for staking positions, not finding common ground
 
+## Available Skills (Optional)
+
+You MAY invoke these global skills when they would strengthen your arguments or proposals. Use judgment — don't invoke skills every round, only when the debate would genuinely benefit.
+
+| Skill | When to Use |
+|-------|-------------|
+| `docs-seeker` | Research external docs, patterns, or prior art when proposing features to strengthen your case with evidence |
+| `brainstorming` | Generate creative alternatives when you need fresh angles on a proposal |
+
+**Example**: If proposing a caching layer, invoke `docs-seeker` to find the best caching pattern for the tech stack, then argue with specific evidence rather than generalities.
+
 ## Posting
 
 Post your message via Agent Mail:

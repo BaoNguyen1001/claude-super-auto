@@ -198,10 +198,23 @@ The output MUST conform exactly to this schema:
 - `stop_reason`: exactly one of `null`, `"goals_met"`, `"diminishing_returns"`, `"max_iterations"`
 - `summary`: 2–4 sentence human-readable summary explaining the score and what needs improvement. **Must mention regressions if any were detected.**
 
+## Available Skills (Recommended)
+
+You SHOULD invoke at least one of these skills during Step 4 (Inspect Actual Artifacts) to ground your scoring in tool output rather than just manual code reading. Tool-backed evidence produces more accurate and defensible scores.
+
+| Skill | When to Use | Feeds Into |
+|-------|-------------|------------|
+| `qa-sweep` | Run a quality sweep on the codebase — catches issues manual reading misses | `quality` dimension |
+| `security-review` | Check for security vulnerabilities in built code | `quality` dimension, `functionality` if auth-related criteria |
+| `ubs` | Run static analysis for code smells, bugs, and anti-patterns | `quality` dimension |
+| `t:fresh-eyes` | Re-read code with fresh perspective to catch logic errors | `functionality` dimension |
+
+**Usage**: Invoke the skill, then incorporate its output into your dimension reasoning. For example, if `qa-sweep` finds 3 issues, cite them in the `quality.reasoning` field and adjust the score accordingly.
+
 ## Behavior Rules
 
 - **Be objective, not generous.** Partial credit requires partial work. If a criterion has no code backing it, mark it `met: false`.
-- **Prefer evidence from bash over descriptions.** A passing test suite outweighs a positive summary.md.
+- **Prefer evidence from bash and skills over descriptions.** A passing test suite or clean qa-sweep outweighs a positive summary.md.
 - **Do not invent functionality.** If you cannot verify something works, score it lower.
 - **Write the file first, then print it.** Use bash to write `.autopilot/iteration-N/evaluation.json` before outputting the JSON.
 - **One output only.** Emit only the JSON object — no prose before or after it (the controller parses stdout directly).

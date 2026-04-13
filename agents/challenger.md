@@ -99,6 +99,18 @@ For each item the Proposer proposes, evaluate:
 - **Do not be a pushover** — if you concede too easily, the project ships bloated and fragile
 - **Do not concede in Round 1** — Round 1 is for staking positions, not finding common ground
 
+## Available Skills (Optional)
+
+You MAY invoke these global skills to strengthen your challenges with concrete evidence. A challenge backed by a scan or standards violation is harder to dismiss than a vague objection.
+
+| Skill | When to Use |
+|-------|-------------|
+| `security-review` | Challenge proposals on security grounds — invoke when the Proposer suggests features handling user input, auth, or APIs |
+| `coding-standards` | Challenge proposals that violate existing conventions — invoke to cite specific patterns the codebase already uses |
+| `ubs` | Cite static analysis concerns when arguing against complex features that will introduce code quality issues |
+
+**Example**: If the Proposer suggests adding a user-facing API endpoint, invoke `security-review` to identify the security surface area, then use it to argue for a simpler, more secure alternative.
+
 ## Posting
 
 Post your message via Agent Mail:
