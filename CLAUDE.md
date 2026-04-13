@@ -11,7 +11,9 @@ Autonomous agent workflow loop for Claude Code CLI. Takes an initial idea and au
    - **Planning**: Invokes the global `/planning` skill to decompose into beads
    - **Building**: Invokes the global `/orchestrator` skill to spawn workers with TDD
    - **Evaluation**: Evaluator agent scores progress against auto-generated success criteria
-3. Loop continues until: goals met (score >= 85) OR diminishing returns (delta <= 5) OR max iterations (default 5)
+3. Loop continues until: goals met OR diminishing returns OR max iterations
+   - **Bounded mode** (default): score >= 85, delta <= 5, max 5 iterations
+   - **Unlimited mode**: score >= 95, delta <= 3 triggers focus shift (not stop), no iteration cap — runs until goals met or session interrupted
 
 ## Project-Local Agents
 

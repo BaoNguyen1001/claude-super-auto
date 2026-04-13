@@ -34,10 +34,18 @@ Give it an idea. Walk away. Come back to a built project.
   │     Score on 4 dimensions               │
   │     Check stop conditions               │
   │                                         │
-  │  Stop when:                             │
+  │  4.5 REVIEW                             │
+  │     Regression detection                │
+  │     (code-reviewer + evaluator)         │
+  │                                         │
+  │  Stop when (bounded mode):              │
   │  - Goals met (score >= 85)              │
   │  - Diminishing returns (delta <= 5)     │
   │  - Max iterations reached (default: 5)  │
+  │                                         │
+  │  Stop when (unlimited mode):            │
+  │  - Goals met (score >= 95)              │
+  │  - Session interrupted by user          │
   └─────────────────────────────────────────┘
   │
   ▼
@@ -102,15 +110,33 @@ That's it. The command asks 3 questions, then runs autonomously.
 
 ## Architecture
 
+### Two Modes
+
+| Mode | Goal Threshold | Delta | Max Iterations | Behavior |
+|------|---------------|-------|----------------|----------|
+| **Bounded** (default) | 85% | 5 | 5 | Standard loop with triple stop condition |
+| **Unlimited** | 95% | 3 (focus shift) | None | Runs until goals met or session interrupted. AI-driven action selection each iteration. |
+
+In **unlimited mode**, the agent autonomously decides each iteration's focus (build, test, review, refactor, fix bugs, upgrade architecture, etc.) based on full project state analysis. Diminishing returns triggers a strategy shift instead of stopping.
+
 ### Adversarial Discussion
 
-Instead of a multi-agent panel, the system uses **adversarial pairs**:
+Instead of a multi-agent panel, the system uses **strongly differentiated adversarial pairs**:
 
-- **Proposer** pushes outward (features, ambition)
-- **Challenger** pulls inward (feasibility, minimalism)
+- **Proposer** (ambitious product visionary) — optimizes for user value and impact
+- **Challenger** (battle-scarred staff engineer) — optimizes for engineering cost and risk
 - They debate using structured messages with `[KEEP]`, `[ADD]`, `[CUT]`, `[MODIFY]` tags
+- No concessions in Round 1 — agents stake positions first, then negotiate
 - Convergence is detected automatically (agreement ratio >= 0.8 or no disputes remain)
 - Max 3 rounds per discussion
+
+### Regression-Aware Review
+
+After building and before evaluation, a **regression review** phase:
+
+1. **Code-reviewer agent** traces changed files, identifies dependents, checks for breakage
+2. **Evaluator** compares criteria checklist against previous iteration — any regression from `met→unmet` is penalized 15 points
+3. Regressions found during review are fixed before evaluation scores them
 
 ### Evaluation
 
@@ -123,23 +149,32 @@ The evaluator scores each iteration on 4 dimensions:
 | Quality | 20% | Tests exist and pass, no stubs |
 | Runnability | 15% | Can it actually be executed? |
 
-### Triple Stop Condition
+The evaluator can invoke global skills (`qa-sweep`, `security-review`, `ubs`) to ground scores in tool output.
 
-The loop stops when ANY of these triggers:
+### Stop Conditions
 
+**Bounded mode** — stops when ANY triggers:
 1. **Goals met** — overall score >= 85/100
 2. **Diminishing returns** — score delta <= 5 between iterations
 3. **Safety cap** — max iterations reached (default: 5)
+
+**Unlimited mode** — only stops when:
+1. **Goals met** — overall score >= 95/100
+2. **Session interrupted** — user breaks the session
+
+Diminishing returns in unlimited mode triggers a **focus shift** — the agent changes strategy instead of stopping.
 
 ### State Management
 
 ```
 .autopilot/
-  config.md              ← idea, criteria, thresholds
+  config.md              ← idea, criteria, thresholds, mode
   STATUS.md              ← current progress (gitignored)
   iteration-N/
+    action-plan.md       ← AI-driven action selection (unlimited mode)
     discussion-result.md ← what was debated
-    evaluation.json      ← scores and verdict
+    review-result.md     ← regression review findings
+    evaluation.json      ← scores, verdict, regressions
     summary.md           ← iteration recap
   FINAL.md               ← written when loop terminates
 ```
