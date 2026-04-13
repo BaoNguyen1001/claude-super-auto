@@ -22,7 +22,11 @@
     "orchestration",
     "loop"
   ],
-  "agents": ["./agents/"],
+  "agents": [
+    "./agents/proposer.md",
+    "./agents/challenger.md",
+    "./agents/evaluator.md"
+  ],
   "skills": ["./skills/"],
   "commands": ["./commands/"]
 }
