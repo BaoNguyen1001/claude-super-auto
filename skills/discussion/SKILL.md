@@ -110,9 +110,10 @@ Execute up to 3 rounds. Each round spawns Proposer then Challenger sequentially.
 ```
 for ROUND in 1, 2, 3:
 
-    # Step 1: Spawn Proposer
+    # Step 1: Spawn Proposer (model MUST match agent definition)
     proposer_result = Task(
         subagent_type="proposer",
+        model="sonnet",
         prompt="""
         You are the Proposer in round {ROUND} of discussion iteration {ITERATION}.
         
@@ -124,9 +125,10 @@ for ROUND in 1, 2, 3:
         """
     )
 
-    # Step 2: Spawn Challenger
+    # Step 2: Spawn Challenger (model MUST match agent definition)
     challenger_result = Task(
         subagent_type="challenger",
+        model="sonnet",
         prompt="""
         You are the Challenger in round {ROUND} of discussion iteration {ITERATION}.
         
@@ -152,6 +154,7 @@ If a Proposer or Challenger message does NOT contain the required `## Items` sec
 ```
 Task(
     subagent_type="{agent}",
+    model="sonnet",
     prompt="""
     Your previous message was rejected — it did not follow the required format.
     
