@@ -19,9 +19,10 @@ Before this skill runs, the `/autopilot` command must have:
 Read from `.autopilot/config.md`:
 
 ```
-GOAL_THRESHOLD = config.goal_threshold       # default: 85
-DELTA_THRESHOLD = config.delta_threshold     # default: 5
-MAX_ITERATIONS = config.max_iterations       # default: 5
+MODE = config.mode                           # "bounded" or "unlimited"
+GOAL_THRESHOLD = config.goal_threshold       # bounded: 85, unlimited: 95
+DELTA_THRESHOLD = config.delta_threshold     # bounded: 5, unlimited: 3
+MAX_ITERATIONS = config.max_iterations       # bounded: 5, unlimited: null
 IDEA = config.idea
 SUCCESS_CRITERIA = config.success_criteria   # auto-generated
 CONSTRAINTS = config.constraints             # auto-inferred
@@ -32,10 +33,22 @@ CONSTRAINTS = config.constraints             # auto-inferred
 ## Main Loop
 
 ```
-for ITERATION in 1..MAX_ITERATIONS:
+ITERATION = 0
+
+while true:
+    ITERATION += 1
+
+    # Bounded mode: enforce max iterations
+    if MODE == "bounded" and ITERATION > MAX_ITERATIONS:
+        write_final_report("max_iterations")
+        break
 
     update_status("iteration": ITERATION, "phase": "starting")
 
+    # ── Phase 0: Action Selection (unlimited mode) ─────
+    if MODE == "unlimited":
+        action_plan = run_ai_action_selection(ITERATION)
+    
     # ── Phase 1: Idea Generation ────────────────────────
     ideas = generate_top_ideas(ITERATION)
 
@@ -64,16 +77,107 @@ for ITERATION in 1..MAX_ITERATIONS:
         write_final_report(reason)
         break
 
-# If loop exhausted without stopping
-if ITERATION == MAX_ITERATIONS and not should_stop:
+# Bounded mode: if loop exhausted without stopping
+if MODE == "bounded" and ITERATION >= MAX_ITERATIONS and not should_stop:
     write_final_report("max_iterations")
+
+# Unlimited mode: loop only exits via break (goals_met or user interrupt)
+# If the session is interrupted, crash recovery will write FINAL.md on next resume
 ```
+
+---
+
+## Phase 0: AI-Driven Action Selection (Unlimited Mode Only)
+
+**Skip this phase in bounded mode.** In bounded mode, proceed directly to Phase 1.
+
+In unlimited mode, the agent autonomously decides what to focus on each iteration by analyzing the full project state. This replaces rigid phase ordering with intelligent, context-aware task selection.
+
+### State Analysis
+
+Before deciding, gather signals from ALL of these sources:
+
+```bash
+# 1. Evaluator scores from previous iteration (if exists)
+cat .autopilot/iteration-$((ITERATION-1))/evaluation.json 2>/dev/null | jq '{overall_score, delta, dimensions, regression_count}'
+
+# 2. Test results
+npm test 2>&1 | tail -20 || python -m pytest --tb=short 2>&1 | tail -20
+
+# 3. Code quality signals
+grep -r "TODO\|FIXME\|placeholder\|stub\|NotImplemented" --include="*.ts" --include="*.js" --include="*.py" -c . 2>/dev/null | head -10
+
+# 4. Unmet success criteria
+cat .autopilot/config.md  # review criteria
+cat .autopilot/iteration-$((ITERATION-1))/evaluation.json 2>/dev/null | jq '.criteria_checklist[] | select(.met == false)'
+
+# 5. Recent changes and potential impacts
+git log --oneline -10
+git diff HEAD~3..HEAD --stat 2>/dev/null
+
+# 6. Regression review from last iteration
+cat .autopilot/iteration-$((ITERATION-1))/review-result.md 2>/dev/null
+```
+
+### Action Categories
+
+Based on the analysis, select ONE OR MORE actions for this iteration:
+
+| Action | When to Choose | Signals |
+|--------|---------------|---------|
+| **build-features** | Unmet success criteria need new code | Low completeness score, criteria with `met: false` |
+| **fix-bugs** | Tests failing, regressions detected | Failed tests, `regression_count > 0`, error logs |
+| **refactor** | Code quality is low, high complexity | Low quality score, many TODOs/stubs, code smells |
+| **review-code** | Recent large changes, low quality score | Many files changed, quality dimension < 60 |
+| **test** | Low test coverage, untested features | Quality score low, tests absent for key features |
+| **upgrade-architecture** | Structural issues blocking progress | Diminishing returns (delta <= 3) with low scores, repeated failures in same area |
+| **apply-patterns** | Code inconsistency, framework misuse | Quality issues, convention violations |
+| **security-review** | Code handles user input, auth, APIs | New endpoints, auth changes, input handling |
+| **polish** | High scores but unmet criteria remain | Overall score > 80 but some criteria still unmet |
+
+### Decision Rules
+
+1. **If regressions exist**: ALWAYS include `fix-bugs` — regressions take priority
+2. **If tests are failing**: Include `fix-bugs` before adding new features
+3. **If delta <= 3 (diminishing returns)**: Switch strategy — if you were building, try refactoring or upgrading architecture instead. Do NOT repeat the same action type that produced low delta.
+4. **If overall score > 80**: Focus on `polish`, `test`, or `review-code` rather than new features
+5. **Multi-action**: You MAY combine 2-3 compatible actions (e.g., `build-features` + `test`, or `refactor` + `review-code`)
+
+### Output
+
+Store the action plan in `.autopilot/iteration-{ITERATION}/action-plan.md`:
+
+```markdown
+# Action Plan — Iteration {ITERATION}
+
+## State Analysis
+- Previous score: {score}/100 (delta: {delta})
+- Test status: {passing/failing/absent}
+- Regressions: {count}
+- Unmet criteria: {count}
+- Code quality signals: {summary}
+
+## Selected Actions
+1. {PRIMARY_ACTION} — {rationale}
+2. {SECONDARY_ACTION} — {rationale} (if applicable)
+
+## Focus Areas
+- {specific files, modules, or criteria to target}
+
+## Strategy Shift
+{if delta was low: "Previous approach ({last_action}) produced low delta. Shifting to {new_action} to break plateau."}
+{if no shift needed: "Continuing current trajectory."}
+```
+
+The action plan informs Phase 1 (idea generation) and Phase 2 (discussion) — the Proposer and Challenger debate WITHIN the scope of the selected actions, not open-endedly.
 
 ---
 
 ## Phase 1: Idea Generation
 
 Use `/t:top-ideas` to autonomously generate improvement ideas based on the current state of the project and the original idea.
+
+In **unlimited mode**, scope idea generation to the selected actions from Phase 0. Pass the action plan as context so ideas align with the chosen focus.
 
 ```
 Skill(skill="t:top-ideas")
@@ -312,10 +416,12 @@ evaluator_result = Task(
 
 ## Phase 6: Stop Condition Check
 
-Check conditions in this specific order. **First match wins.**
+Check conditions in this specific order. **First match wins.** Behavior differs between bounded and unlimited modes.
+
+### Bounded Mode
 
 ```
-function check_stop_conditions(evaluation, iteration):
+function check_stop_conditions_bounded(evaluation, iteration):
 
     # 1. Safety cap (always checked first)
     if iteration >= MAX_ITERATIONS:
@@ -331,7 +437,6 @@ function check_stop_conditions(evaluation, iteration):
             return (true, "diminishing_returns")
 
     # 4. Controller override: always continue if iteration < 2
-    #    (early scores are unreliable — scaffolding iteration)
     if iteration < 2:
         return (false, null)
 
@@ -339,13 +444,62 @@ function check_stop_conditions(evaluation, iteration):
     return (evaluation.verdict == "stop", evaluation.stop_reason)
 ```
 
+### Unlimited Mode
+
+In unlimited mode, the loop NEVER stops on `max_iterations` or `diminishing_returns`. Diminishing returns triggers a **focus shift** instead.
+
+```
+function check_stop_conditions_unlimited(evaluation, iteration):
+
+    # 1. Goal satisfaction — the ONLY auto-stop condition
+    if evaluation.overall_score >= GOAL_THRESHOLD:  # 95%
+        return (true, "goals_met")
+
+    # 2. Diminishing returns — SHIFT FOCUS, do not stop
+    if iteration >= 3 and evaluation.delta is not null:
+        if evaluation.delta <= DELTA_THRESHOLD:  # 3
+            # Signal to Phase 0 in the NEXT iteration to change strategy
+            write_focus_shift_signal(iteration, evaluation)
+            # Continue — do NOT stop
+            return (false, null)
+
+    # 3. Controller override: always continue if iteration < 2
+    if iteration < 2:
+        return (false, null)
+
+    # 4. Default: always continue (unlimited mode never stops on evaluator verdict)
+    return (false, null)
+```
+
+### Focus Shift Signal (Unlimited Mode)
+
+When diminishing returns are detected, write `.autopilot/iteration-{ITERATION}/focus-shift.md`:
+
+```markdown
+# Focus Shift Required
+
+Previous delta: {delta} (below threshold {DELTA_THRESHOLD})
+Previous action types: {actions from last 2 iterations}
+
+The current approach is producing diminishing returns.
+Phase 0 in the next iteration MUST select a DIFFERENT action category.
+
+Suggested shifts:
+- If last action was build-features → try refactor or upgrade-architecture
+- If last action was refactor → try test or review-code
+- If last action was test → try build-features or polish
+- If last action was review-code → try build-features or fix-bugs
+```
+
 ### Override Logic
 
-| Situation | Override | Why |
-|-----------|----------|-----|
-| Iteration 1, score < 85 | Always continue | First iteration is scaffolding — score is artificially low |
-| Iteration 1, score >= 85 | Respect (stop) | If somehow everything is done in one shot, accept it |
-| Delta <= 5 but iteration < 3 | Continue | Give at least 3 iterations before stopping on diminishing returns |
+| Mode | Situation | Override | Why |
+|------|-----------|----------|-----|
+| Both | Iteration 1, score < threshold | Always continue | First iteration is scaffolding |
+| Both | Iteration 1, score >= threshold | Respect (stop) | Done in one shot |
+| Bounded | Delta <= 5 but iteration < 3 | Continue | Too early to judge |
+| Unlimited | Delta <= 3 | **Shift focus, continue** | Change strategy instead of stopping |
+| Unlimited | Max iterations | **Ignored** | No cap in unlimited mode |
 
 ---
 
@@ -395,10 +549,13 @@ After evaluation, write a summary of this iteration.
 ```markdown
 # Autopilot Status
 
+- Mode: {MODE}
 - Current iteration: {ITERATION}
 - Latest score: {overall_score}/100
 - Status: {running|completed}
 - Stop reason: {reason or "in progress"}
+- {if unlimited: "Action this iteration: {selected_actions}"}
+- {if unlimited and focus_shift: "FOCUS SHIFT: strategy changed due to diminishing returns"}
 - Last updated: {timestamp}
 ```
 
@@ -413,8 +570,9 @@ When the loop stops (any reason), write `.autopilot/FINAL.md`:
 
 ## Configuration
 - Idea: {IDEA}
+- Mode: {MODE}
 - Success criteria: {count} (auto-generated)
-- Max iterations: {MAX_ITERATIONS}
+- Max iterations: {MAX_ITERATIONS or "unlimited"}
 - Thresholds: goal={GOAL_THRESHOLD}, delta={DELTA_THRESHOLD}
 
 ## Result
@@ -479,8 +637,10 @@ If the loop crashes mid-iteration:
 
 | File | Written By | Read By | Purpose |
 |------|-----------|---------|---------|
-| `.autopilot/config.md` | /autopilot command | All phases | Idea, criteria, thresholds |
+| `.autopilot/config.md` | /autopilot command | All phases | Idea, criteria, thresholds, mode |
 | `.autopilot/STATUS.md` | Controller (this) | Crash recovery | Current state |
+| `.autopilot/iteration-N/action-plan.md` | Phase 0 (unlimited mode) | Phase 1, Phase 2 | AI-driven action selection |
+| `.autopilot/iteration-N/focus-shift.md` | Phase 6 (unlimited mode) | Phase 0 next iteration | Diminishing returns strategy shift |
 | `.autopilot/iteration-N/top-ideas.md` | Phase 1 (this) | Phase 2 | Generated ideas |
 | `.autopilot/iteration-N/selected-ideas.md` | Phase 1 (this) | Phase 2 | Picked ideas |
 | `.autopilot/iteration-N/discussion-result.md` | /t:discuss or discussion skill | Planning phase | What to build |
