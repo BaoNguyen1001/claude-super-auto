@@ -69,6 +69,38 @@ git diff HEAD~1..HEAD --stat
 git diff HEAD~1..HEAD -- '*.ts' '*.js' '*.py' '*.go' | head -100
 ```
 
+### Step 4.5 — Regression Check
+
+Compare the current state against the previous iteration to detect regressions — criteria or tests that were passing before but are now broken.
+
+**Skip this step for iteration 1** (no previous state to compare against).
+
+For iteration 2+:
+
+1. **Load previous criteria checklist** from `.autopilot/iteration-{N-1}/evaluation.json`:
+   ```bash
+   cat .autopilot/iteration-$((N-1))/evaluation.json | jq '.criteria_checklist'
+   ```
+
+2. **Compare criteria**: For each criterion that was `met: true` in the previous iteration, verify it is still met now. Any criterion that regressed from `true` → `false` is a **REGRESSION**.
+
+3. **Compare test results**: If the previous evaluation recorded test counts, compare:
+   ```bash
+   # Current test results (already collected in Step 4)
+   # Previous test results from prior evaluation.json
+   cat .autopilot/iteration-$((N-1))/evaluation.json | jq '.tests'
+   ```
+   If `previous_passed > current_passed`, tests have regressed.
+
+4. **Read regression review** (if Phase 4.5 ran): Check `.autopilot/iteration-{N}/review-result.md` for regressions found by the code-reviewer agent. Incorporate these findings.
+
+5. **Build regressions list**: For each regression found:
+   ```json
+   {"criterion": "...", "was_met": true, "now_met": false, "cause": "..."}
+   ```
+
+6. **Apply scoring penalty**: For each regression detected, penalize the `functionality` score by 15 points (clamped to 0 minimum). Regressions are severe — they mean the iteration made things worse.
+
 ### Step 5 — Score Each Dimension
 
 Score each dimension 0–100 using the rubric below.
@@ -135,6 +167,16 @@ The output MUST conform exactly to this schema:
   "criteria_checklist": [
     { "criterion": "...", "met": true_or_false }
   ],
+  "regressions": [
+    { "criterion": "...", "was_met": true, "now_met": false, "cause": "..." }
+  ],
+  "regression_count": 0,
+  "tests": {
+    "total": N,
+    "passed": N,
+    "failed": N,
+    "previous_passed": N_or_null
+  },
   "verdict": "continue_or_stop",
   "stop_reason": null_or_"goals_met"_or_"diminishing_returns"_or_"max_iterations",
   "summary": "..."
@@ -149,9 +191,12 @@ The output MUST conform exactly to this schema:
 - `previous_score`: float or null
 - `delta`: float or null
 - `criteria_checklist`: array with one object per criterion, using the exact criterion text from config.md
+- `regressions`: array of regression objects (empty array `[]` if none detected, or if iteration 1)
+- `regression_count`: integer count of regressions detected (0 if none or iteration 1)
+- `tests`: object with test counts; `previous_passed` is null for iteration 1
 - `verdict`: exactly `"continue"` or `"stop"` (no other values)
 - `stop_reason`: exactly one of `null`, `"goals_met"`, `"diminishing_returns"`, `"max_iterations"`
-- `summary`: 2–4 sentence human-readable summary explaining the score and what needs improvement
+- `summary`: 2–4 sentence human-readable summary explaining the score and what needs improvement. **Must mention regressions if any were detected.**
 
 ## Behavior Rules
 

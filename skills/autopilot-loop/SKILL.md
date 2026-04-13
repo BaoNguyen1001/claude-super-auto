@@ -48,6 +48,9 @@ for ITERATION in 1..MAX_ITERATIONS:
     # ── Phase 4: Building ───────────────────────────────
     run_building(ITERATION)
 
+    # ── Phase 4.5: Regression Review ────────────────────
+    run_regression_review(ITERATION)
+
     # ── Phase 5: Evaluation ─────────────────────────────
     evaluation = run_evaluation(ITERATION)
 
@@ -195,6 +198,92 @@ br stats --json | jq '.summary.closed_issues'
 
 ---
 
+## Phase 4.5: Regression Review
+
+After building and before evaluation, spawn the global `code-reviewer` agent to detect regressions — new code that may have broken existing features.
+
+### Record Pre-Build Baseline
+
+Before Phase 4 begins, capture the commit hash so the review can diff against it:
+
+```bash
+PRE_BUILD_COMMIT=$(git rev-parse HEAD)
+```
+
+### Spawn Regression Reviewer
+
+```
+review_result = Task(
+    subagent_type="code-reviewer",
+    prompt="""
+    Regression review for autopilot iteration {ITERATION}.
+
+    ## Your Task
+    Detect whether the code changes in this iteration broke any existing functionality.
+
+    ## Steps
+
+    1. **Identify changed files**:
+       ```bash
+       git diff {PRE_BUILD_COMMIT}..HEAD --name-only
+       ```
+
+    2. **Trace dependents**: For each changed file, find files that import or reference it:
+       ```bash
+       grep -rl "import.*{module_name}" --include="*.ts" --include="*.js" --include="*.py" . 2>/dev/null
+       grep -rl "{function_name}" --include="*.ts" --include="*.js" --include="*.py" . 2>/dev/null
+       ```
+
+    3. **Check for breakage**:
+       - Removed or renamed exports that other files depend on
+       - Changed function signatures (added required params, changed return types)
+       - Broken imports (files importing something that no longer exists)
+       - Modified shared state or config that other modules rely on
+
+    4. **Run full test suite** and compare results:
+       ```bash
+       npm test 2>&1 || python -m pytest --tb=short 2>&1 || echo "No test runner found"
+       ```
+
+    5. **Report**: Write findings to `.autopilot/iteration-{ITERATION}/review-result.md`:
+       ```markdown
+       # Regression Review — Iteration {ITERATION}
+
+       ## Files Changed
+       - <list>
+
+       ## Dependents Checked
+       - <file>: <dependents found>
+
+       ## Regressions Found
+       - <description of each regression, or "None detected">
+
+       ## Test Results
+       - Total: N, Passed: N, Failed: N
+
+       ## Recommended Fixes
+       - <fix description, or "No fixes needed">
+       ```
+
+    6. **If regressions found**: Attempt to fix them directly. For each regression:
+       - Read the broken file and the change that caused the break
+       - Apply the minimal fix (update imports, adjust function calls, etc.)
+       - Re-run affected tests to verify the fix
+       - Commit fixes with message: "fix: regression from iteration {ITERATION} — <description>"
+    """
+)
+```
+
+**Output**: `.autopilot/iteration-{ITERATION}/review-result.md`
+
+**Verify**: File exists. If review finds regressions and fixes them, verify the fix commits exist.
+
+**If review fails** (agent error, timeout):
+1. Log failure to `.autopilot/iteration-{ITERATION}/review-result.md`: "Review skipped: {error}"
+2. Proceed to evaluation — the evaluator has its own regression detection as a fallback
+
+---
+
 ## Phase 5: Evaluation
 
 Spawn the evaluator agent to score this iteration's results.
@@ -287,6 +376,11 @@ After evaluation, write a summary of this iteration.
 - Commits: {list of hashes}
 - Key files: {list}
 
+## Regression Review
+- Regressions found: {regression_count}
+- Test results: {passed}/{total} (previous: {previous_passed})
+{if regressions: list each regression with cause and whether it was fixed}
+
 ## Criteria Status
 {for each criterion}
 - {'[x]' if met else '[ ]'} {criterion}
@@ -366,7 +460,8 @@ git commit -m "autopilot: complete — {stop_reason} after {ITERATION} iteration
 | `/t:discuss` fails | Use selected ideas directly as planning input |
 | Discussion skill fails | Use selected ideas directly as planning input |
 | Planning produces no beads | Skip build, go to evaluation (likely goals already met) |
-| Building fails mid-execution | Proceed to evaluation — low score triggers next iteration |
+| Building fails mid-execution | Proceed to regression review, then evaluation — low score triggers next iteration |
+| Regression review fails | Log failure, proceed to evaluation (evaluator has its own regression detection) |
 | Evaluation fails | Score 0, verdict "continue" — ensures another attempt |
 | Agent Mail unavailable | Skills fall back to direct Task() prompts without thread persistence |
 | `.autopilot/` directory missing | Re-create from config and continue |
@@ -389,6 +484,7 @@ If the loop crashes mid-iteration:
 | `.autopilot/iteration-N/top-ideas.md` | Phase 1 (this) | Phase 2 | Generated ideas |
 | `.autopilot/iteration-N/selected-ideas.md` | Phase 1 (this) | Phase 2 | Picked ideas |
 | `.autopilot/iteration-N/discussion-result.md` | /t:discuss or discussion skill | Planning phase | What to build |
+| `.autopilot/iteration-N/review-result.md` | Phase 4.5 (code-reviewer) | Evaluator, human review | Regression review findings |
 | `.autopilot/iteration-N/evaluation.json` | Evaluator agent | Controller, next iteration | Scores and verdict |
 | `.autopilot/iteration-N/summary.md` | Controller (this) | Human review | Iteration recap |
 | `.autopilot/FINAL.md` | Controller (this) | Human review | Final report |
