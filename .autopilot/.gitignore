@@ -1,4 +1,9 @@
 # Ephemeral runtime state — do not commit
 STATUS.md
 
-# Everything else (.autopilot/config.md, iteration-N/, FINAL.md) IS committed
+# Everything else IS committed:
+#   .autopilot/config.md     — the session's idea, criteria, thresholds
+#   .autopilot/iteration-N/  — per-iteration artifacts (ideas, discussion, evaluation, summary)
+#   .autopilot/HISTORY.md    — consolidated cross-iteration log (durable, resume-critical)
+#   .autopilot/FINAL.md      — final report when loop terminates
+#   .autopilot/archive/      — snapshots of prior sessions (written when user chooses "Start fresh")

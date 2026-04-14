@@ -190,13 +190,14 @@ Skill(skill="t:top-ideas")
 | IDEA | From config | From config |
 | Focus area | Original idea scope | Unmet criteria + evaluator feedback |
 | Current state | Codebase as-is | What was built in prior iterations |
+| PRIOR_ITERATION_HISTORY | N/A | Full contents of `.autopilot/HISTORY.md` — ideas marked done here MUST NOT be re-proposed |
 
 **Post-processing**: Parse the output to extract a ranked list of ideas. Store to `.autopilot/iteration-{ITERATION}/top-ideas.md`.
 
 **Auto-pick**: Select the top 3-5 ideas that are:
 1. Most aligned with the original `IDEA` and unmet `SUCCESS_CRITERIA`
 2. Feasible within a single iteration
-3. Not duplicating already-completed work (check prior iteration summaries)
+3. Not duplicating already-completed work — cross-check against `.autopilot/HISTORY.md` (authoritative, consolidated) and individual `iteration-N/summary.md` files
 
 Store selected ideas in `.autopilot/iteration-{ITERATION}/selected-ideas.md`.
 
@@ -242,6 +243,7 @@ When falling back to the local discussion skill, provide these inputs:
 | PRIOR_EVALUATION | N/A | Previous evaluation.json |
 | COMPLETED_ITEMS | N/A | Items with `met: true` in previous criteria_checklist |
 | REMAINING_ITEMS | N/A | Items with `met: false` in previous criteria_checklist |
+| PRIOR_ITERATION_HISTORY | N/A | Full contents of `.autopilot/HISTORY.md` — Proposer and Challenger MUST NOT re-argue scope already resolved in prior iterations |
 
 **Output**: `.autopilot/iteration-{ITERATION}/discussion-result.md`
 
@@ -559,6 +561,50 @@ After evaluation, write a summary of this iteration.
 - Last updated: {timestamp}
 ```
 
+**Append to** `.autopilot/HISTORY.md` (create the file with a `# Autopilot Iteration History` heading if it does not yet exist). Add one compact block per iteration — keep entries ≤ 10 lines so the whole log stays scannable:
+
+```markdown
+## Iteration {ITERATION} — {YYYY-MM-DD HH:MM}
+- Score: {overall_score}/100 (delta: {delta})
+- Mode: {MODE}
+- Actions: {selected_actions or "discuss → plan → build → review → evaluate"}
+- Ideas selected: {count} ({first idea title}, ...)
+- Beads closed: {count} ({first bead id}, ...)
+- Commits: {short hashes, comma-separated}
+- Regressions: {regression_count} ({fixed_count} fixed)
+- Criteria met: {met_count}/{total_count}
+- Verdict: {continue|stop} ({stop_reason or "in progress"})
+```
+
+HISTORY.md is the durable, consolidated log that survives across sessions. It is committed to git (unlike the gitignored `STATUS.md`) and is the primary input the controller uses when **resuming** a session — see "Resume Flow" below.
+
+---
+
+## Iteration History Log
+
+`.autopilot/HISTORY.md` is a single append-only file that captures a one-block summary for every completed iteration across every run of the loop. It exists for three reasons:
+
+1. **Human scannability** — one file to read to understand the full arc of the project.
+2. **Resume context** — when a session is resumed (via `/autopilot` detecting prior state), this file is read into Phase 1 and Phase 2 so agents do not re-propose already-completed work.
+3. **Durability across session boundaries** — unlike `STATUS.md` (ephemeral, gitignored), HISTORY.md is committed and survives any session break.
+
+### When it is written
+
+- **End of Phase 7** of every iteration (see append block above).
+- A single entry per iteration. If an iteration is re-run after crash recovery, the existing entry for that iteration must be **replaced**, not duplicated — match on the `## Iteration {ITERATION} —` heading.
+
+### When it is read
+
+- **Phase 1 (Idea Generation)** for iteration ≥ 2 — passed as `PRIOR_ITERATION_HISTORY` context so `/t:top-ideas` does not regenerate already-done work.
+- **Phase 2 (Auto-Discussion)** — Proposer and Challenger receive it so they do not re-debate settled scope.
+- **Resume Flow** — the controller reads it at startup to know which iteration to begin at and what was already accomplished.
+
+### Format guarantees
+
+- New iterations are **appended** at the bottom. The file is read top-to-bottom as a chronological log.
+- Each entry is ≤ 10 lines. Full detail lives in `.autopilot/iteration-N/summary.md`.
+- Never rewrite prior entries — only append new ones (except for the crash-recovery re-run case above).
+
 ---
 
 ## Loop Termination: Final Report
@@ -624,12 +670,37 @@ git commit -m "autopilot: complete — {stop_reason} after {ITERATION} iteration
 | Agent Mail unavailable | Skills fall back to direct Task() prompts without thread persistence |
 | `.autopilot/` directory missing | Re-create from config and continue |
 
-### Crash Recovery
+### Resume Flow
 
-If the loop crashes mid-iteration:
-1. Read `.autopilot/STATUS.md` for last known state
-2. Check which phase artifacts exist for the current iteration
-3. Resume from the next incomplete phase (don't re-run completed phases)
+Applies to BOTH (a) mid-iteration crash recovery and (b) user-initiated resume after `/autopilot` detects prior state in Step 0 and the user chose **Resume**.
+
+1. **Re-hydrate configuration** — Read `.autopilot/config.md` to restore `IDEA`, `MODE`, `SUCCESS_CRITERIA`, `CONSTRAINTS`, and thresholds. Do NOT regenerate these — they were agreed at kickoff.
+2. **Load prior iteration history** — Read `.autopilot/HISTORY.md`. Use it to derive:
+   - `LAST_ITERATION` — the highest `## Iteration N —` heading found, or `0` if HISTORY.md is missing.
+   - `PRIOR_ITERATION_HISTORY` — the full contents, passed as context into Phase 1 and Phase 2 so agents do not re-propose completed work.
+3. **Detect partial iteration** — Look at `.autopilot/iteration-{LAST_ITERATION+1}/`:
+   - If the directory exists but lacks `summary.md`, the prior session was killed mid-iteration. Resume from the next incomplete phase within that iteration (see phase → artifact mapping below).
+   - If the directory does not exist (or `summary.md` is present for `LAST_ITERATION`), start a fresh iteration at `LAST_ITERATION + 1`.
+4. **Phase → artifact mapping** for partial-iteration resume:
+
+   | Phase | Artifact that signals completion |
+   |-------|----------------------------------|
+   | Phase 0 (unlimited) | `action-plan.md` |
+   | Phase 1 | `top-ideas.md` AND `selected-ideas.md` |
+   | Phase 2 | `discussion-result.md` |
+   | Phase 3 (planning) | At least one open bead created post-`config.md` mtime, OR summary comment `planning complete` in the iteration directory |
+   | Phase 4 (build) | Beads closed matching this iteration's plan, OR `build-errors.md` |
+   | Phase 4.5 | `review-result.md` |
+   | Phase 5 | `evaluation.json` |
+   | Phase 6/7 | `summary.md` AND entry in HISTORY.md |
+
+5. **Skip already-completed phases.** Do NOT re-run any phase whose artifact already exists — that would overwrite work and could double-count regressions or re-generate the same ideas.
+6. **Update STATUS.md** at the start of the resumed phase: set `Status: running`, `Last updated: {now}`, and record the phase being entered.
+7. **Pass PRIOR_ITERATION_HISTORY to Proposer/Challenger.** When the resumed run reaches Phase 2, the discussion context MUST include HISTORY.md contents under the header `## Prior Iteration History`. Proposer and Challenger are instructed not to re-propose ideas already marked done in HISTORY.md.
+
+### Crash Recovery (special case of Resume Flow)
+
+A crash is simply a Resume Flow that begins without a user prompt — invoked automatically when the controller restarts and finds `.autopilot/STATUS.md` with `Status: running`. The rules above apply unchanged.
 
 ---
 
@@ -667,4 +738,6 @@ The controller MAY invoke any of these global skills when the situation warrants
 | `.autopilot/iteration-N/review-result.md` | Phase 4.5 (code-reviewer) | Evaluator, human review | Regression review findings |
 | `.autopilot/iteration-N/evaluation.json` | Evaluator agent | Controller, next iteration | Scores and verdict |
 | `.autopilot/iteration-N/summary.md` | Controller (this) | Human review | Iteration recap |
+| `.autopilot/HISTORY.md` | Controller (this, Phase 7 append) | Resume Flow, Phase 1, Phase 2, human review | Consolidated, committed cross-iteration log. Primary input for resume and for agent awareness of what's already been done. |
+| `.autopilot/archive/{timestamp}/` | `/autopilot` Step 0 (on "Start fresh") | Human review only | Snapshot of prior session state when user opts for a fresh start |
 | `.autopilot/FINAL.md` | Controller (this) | Human review | Final report |

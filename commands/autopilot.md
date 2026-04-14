@@ -2,6 +2,64 @@
 
 User provides ONE initial request. Everything else is autonomous. No further questions asked.
 
+## Step 0: Detect Prior Session (Resume vs Fresh)
+
+Before asking anything, check whether an earlier autopilot session exists that the user may want to resume.
+
+1. **Check for prior state.** Read `.autopilot/STATUS.md` if it exists. Parse the `Status:` field.
+
+2. **Classify the prior state:**
+
+   | Status value | Meaning | Action |
+   |--------------|---------|--------|
+   | File missing | No prior session | Proceed to Step 1 (fresh kickoff) |
+   | `initializing` | Session started but Phase 1 never ran | Treat as resumable but offer fresh |
+   | `running` | Loop mid-flight when session ended | Resumable |
+   | `completed` | Loop finished normally | Treat as archive-and-restart |
+
+3. **If resumable, ask the user ONE question:**
+
+   > **A prior autopilot session was detected.**
+   > - Mode: `{MODE}`
+   > - Last iteration: `{N}`
+   > - Latest score: `{score}/100`
+   > - Status: `{Status}` — `{Stop reason if any}`
+   >
+   > **What would you like to do?**
+   > - **A) Resume** — continue from iteration `{N+1}` (or next incomplete phase of iteration `{N}`), reusing the existing config and idea.
+   > - **B) Start fresh** — archive the prior session to `.autopilot/archive/{timestamp}/` and begin a new loop.
+
+4. **On Resume:**
+   - **Do NOT** ask for an idea, mode, or any kickoff inputs. They already live in `.autopilot/config.md`.
+   - Update `.autopilot/STATUS.md`: set `Status: running` and `Last updated: {now}`.
+   - Display a brief resume banner:
+     ```
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       AUTOPILOT RESUMED ({MODE} mode)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       Last iteration: {N} (score: {score}/100)
+       Resuming from: {next phase or iteration N+1}
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     ```
+   - Skip to **Step 5** (invoke the loop controller). The controller's Resume Flow handles the rest.
+
+5. **On Start fresh:**
+   - Archive existing state. Move every child of `.autopilot/` EXCEPT `config.md.template`, `.gitignore`, and any existing `archive/` directory into `.autopilot/archive/{YYYY-MM-DD-HH-MM}/`:
+     ```bash
+     ARCHIVE_DIR=".autopilot/archive/$(date +%Y-%m-%d-%H-%M)"
+     mkdir -p "$ARCHIVE_DIR"
+     find .autopilot -mindepth 1 -maxdepth 1 \
+       ! -name config.md.template \
+       ! -name .gitignore \
+       ! -name archive \
+       -exec mv {} "$ARCHIVE_DIR/" \;
+     ```
+   - Proceed to Step 1 (fresh kickoff) as if no prior session existed.
+
+6. **On missing STATUS.md:** Proceed to Step 1 — nothing to resume.
+
+Rationale: Per D1 (fully autonomous) and D5 (interactive kickoff), this Step 0 prompt is the ONLY new user-facing question added to the command. After the resume/fresh decision, the loop stays fully autonomous.
+
 ## Step 1: Accept the Initial Request
 
 If the user provided arguments with the command, use those as `IDEA`.

@@ -170,14 +170,25 @@ Diminishing returns in unlimited mode triggers a **focus shift** — the agent c
 .autopilot/
   config.md              ← idea, criteria, thresholds, mode
   STATUS.md              ← current progress (gitignored)
+  HISTORY.md             ← consolidated cross-iteration log (committed, drives resume)
   iteration-N/
     action-plan.md       ← AI-driven action selection (unlimited mode)
     discussion-result.md ← what was debated
     review-result.md     ← regression review findings
     evaluation.json      ← scores, verdict, regressions
     summary.md           ← iteration recap
+  archive/{timestamp}/   ← snapshot of prior session (written on "Start fresh")
   FINAL.md               ← written when loop terminates
 ```
+
+### Resume After a Break
+
+If you stop a session mid-loop and later run `/autopilot` again, it detects the prior state in `.autopilot/STATUS.md` and asks:
+
+- **Resume** — continues from the next incomplete iteration, reusing the idea, criteria, and mode stored in `config.md`. `HISTORY.md` is passed to the Proposer/Challenger so they do not re-argue scope you already settled.
+- **Start fresh** — archives the prior session to `.autopilot/archive/{timestamp}/` and kicks off a new loop.
+
+Mid-iteration crashes are recovered the same way — phase artifacts already on disk are skipped so no work is repeated.
 
 ## Dependencies
 
