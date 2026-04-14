@@ -561,7 +561,9 @@ After evaluation, write a summary of this iteration.
 - Last updated: {timestamp}
 ```
 
-**Append to** `.autopilot/HISTORY.md` (create the file with a `# Autopilot Iteration History` heading if it does not yet exist). Add one compact block per iteration — keep entries ≤ 10 lines so the whole log stays scannable:
+**Append to** `.autopilot/HISTORY.md` (create the file with a `# Autopilot Iteration History` heading if it does not yet exist). Add one block per iteration. Keep the top-level bullets scannable, but include a nested **Discussion** section that preserves the Proposer vs Challenger debate detail — this is the primary signal future iterations use to avoid re-arguing settled scope.
+
+Parse `.autopilot/iteration-{ITERATION}/discussion-result.md` to populate the Discussion section. If that file is missing (discussion skipped/failed), emit `- Discussion: skipped ({reason})` instead of the nested block.
 
 ```markdown
 ## Iteration {ITERATION} — {YYYY-MM-DD HH:MM}
@@ -574,7 +576,26 @@ After evaluation, write a summary of this iteration.
 - Regressions: {regression_count} ({fixed_count} fixed)
 - Criteria met: {met_count}/{total_count}
 - Verdict: {continue|stop} ({stop_reason or "in progress"})
+- Discussion: {ROUND_COUNT} rounds, agreement {agreement_ratio}, exit: {convergence_reason}
+  - Proposer [ADD]: {comma-separated ADD items from Proposer's final round, truncate each to ~60 chars}
+  - Proposer [KEEP]: {KEEP items}
+  - Proposer [MODIFY]: {MODIFY items with short note}
+  - Challenger [CUT]: {CUT items from Challenger's final round}
+  - Challenger [KEEP]: {KEEP items}
+  - Challenger [MODIFY]: {MODIFY items with short note}
+  - Agreed (built): {items in "Agreed Features" section}
+  - Disputed: {items tagged [DISPUTED] with one-line Proposer-vs-Challenger rationale}
+  - Cut: {items in "Explicitly Cut" section}
+  - Concessions — Proposer: {list}; Challenger: {list}
 ```
+
+Rules for the Discussion block:
+
+1. Pull **final-round** tagged items only (not every round) — earlier rounds are intermediate state.
+2. Quote item text verbatim from the agent messages; truncate with `…` after ~60 chars if needed.
+3. Omit any sub-bullet whose list is empty (e.g., no `Proposer [MODIFY]:` line if the Proposer issued no MODIFY tags).
+4. For `Disputed:`, use the format `{item} — P: {rationale}; C: {rationale}` so both stances survive.
+5. Do NOT elide Concessions even if short — they are the highest-signal artifact for "what the agents gave up."
 
 HISTORY.md is the durable, consolidated log that survives across sessions. It is committed to git (unlike the gitignored `STATUS.md`) and is the primary input the controller uses when **resuming** a session — see "Resume Flow" below.
 
@@ -602,7 +623,8 @@ HISTORY.md is the durable, consolidated log that survives across sessions. It is
 ### Format guarantees
 
 - New iterations are **appended** at the bottom. The file is read top-to-bottom as a chronological log.
-- Each entry is ≤ 10 lines. Full detail lives in `.autopilot/iteration-N/summary.md`.
+- The top-level bullets (Score through Verdict) stay ≤ 10 lines for scannability.
+- The nested **Discussion** block may span additional lines — it preserves the Proposer/Challenger debate (tagged items, disputes, concessions) so future iterations can skip re-arguing settled scope. Omit empty sub-bullets to keep it tight. Full discussion detail still lives in `.autopilot/iteration-N/discussion-result.md`.
 - Never rewrite prior entries — only append new ones (except for the crash-recovery re-run case above).
 
 ---
